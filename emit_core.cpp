@@ -1,8 +1,10 @@
-/*	Copyright (C) 2022 Patrick Herlihy - https://byte4byte.com
+/*
+	Copyright (C) 2022 Patrick Herlihy - https://byte4byte.com
+	Copyright (C) 2022 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
+	the Free Software Foundation, either version 2 of the License, or
 	(at your option) any later version.
 
 	This file is distributed in the hope that it will be useful,
@@ -67,7 +69,7 @@ static char *g_curr_jit_block = NULL;
 static char *g_curr_jit_ptr = NULL;
 static int g_curr_jit_size = 0;
 
-static void *alloc_func(size_t size) {
+static void *armjitarm_alloc_func(size_t size) {
     if (! g_curr_jit_block || (uintptr_t)((uintptr_t)g_curr_jit_ptr + (uintptr_t)size) > (uintptr_t)((uintptr_t)g_curr_jit_block + (uintptr_t)g_curr_jit_size)) {
         if (g_curr_jit_block) {
             printf("RESETTING JIT\n");
@@ -93,6 +95,7 @@ static  void freeFuncs() {
 		munmap((void *)it->first, (uintptr_t)it->second);
 	}
 	allFuncs.clear();
+	g_curr_jit_block = NULL;
 }
 
 static void allocNewBlock() {
@@ -171,7 +174,6 @@ void releaseBytes(t_bytes *bytes) {
 }
 	
 JittedFunc createFunc(t_bytes *bytes) {
-
     for (auto const& lbl : g_LABELS) {
         int nj = lbl.second.jumps.size();
         for (int i = 0; i < nj; i++) {
@@ -179,7 +181,7 @@ JittedFunc createFunc(t_bytes *bytes) {
         }
     }
 
-    char *fn = (char *)alloc_func(g_TOTALBYTES);
+    char *fn = (char *)armjitarm_alloc_func(g_TOTALBYTES);
     char *fn_ptr = fn;
     if (! fn) return NULL;
 

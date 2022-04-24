@@ -1,8 +1,10 @@
-/*	Copyright (C) 2022 Patrick Herlihy - https://byte4byte.com
+/*
+	Copyright (C) 2022 Patrick Herlihy - https://byte4byte.com
+	Copyright (C) 2022 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
+	the Free Software Foundation, either version 2 of the License, or
 	(at your option) any later version.
 
 	This file is distributed in the hope that it will be useful,
@@ -23,10 +25,10 @@
 #include <map>
 #include <vector>
 
+#include "utils/bits.h"
 #include "armcpu.h"
 #include "instructions.h"
 #include "instruction_attributes.h"
-#include "Disassembler.h"
 #include "MMU.h"
 #include "MMU_timing.h"
 #include "arm_jit.h"
@@ -662,7 +664,6 @@ static GpVar bb_profiler_entry;
 //==================================================================== common funcs
 static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int population)
 {
-	
 	if(PROCNUM==ARMCPU_ARM9)
 	{
 		if(population < alu_cycles)
@@ -680,7 +681,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
 //-----------------------------------------------------------------------------
 //   OPs
 //-----------------------------------------------------------------------------
-#define OP_ARITHMETIC(arg, x86inst, symmetric, flags)  \
+#define OP_ARITHMETIC(arg, x86inst, symmetric, flags) \
 	arg; \
 	if(REG_POS(i,12) == REG_POS(i,16)) \
 	{ \
@@ -720,7 +721,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
 	} \
 	return 1;
 
-#define OP_ARITHMETIC_R(arg, x86inst, flags)  \
+#define OP_ARITHMETIC_R(arg, x86inst, flags) \
 	arg; \
 	emit_mov(g_out, rhs, lhs); \
 	x86inst(g_out, lhs, reg_pos_ptr(16, R1, VALUE), lhs); \
@@ -745,7 +746,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
 	} \
 	return 1;
 
-#define OP_ARITHMETIC_S(arg, x86inst, symmetric)  \
+#define OP_ARITHMETIC_S(arg, x86inst, symmetric) \
 	arg; \
 	if(REG_POS(i,12) == REG_POS(i,16)) \
 	{ \
@@ -977,8 +978,7 @@ static int OP_BIC_S_IMM_VAL(const u32 i) { OP_ARITHMETIC_S(S_IMM_VAL; rhs_var = 
 //-----------------------------------------------------------------------------
 //   TST
 //-----------------------------------------------------------------------------
-
-#define OP_TST_(arg)  \
+#define OP_TST_(arg) \
 	arg; \
   emit_test(g_out, reg_pos_ptr(16, R1, VALUE), rhs_reg); \
 	SET_NZC; \
@@ -997,7 +997,7 @@ static int OP_TST_IMM_VAL(const u32 i) { OP_TST_(S_IMM_VAL); }
 //-----------------------------------------------------------------------------
 //   TEQ
 //-----------------------------------------------------------------------------
-#define OP_TEQ_(arg)  \
+#define OP_TEQ_(arg) \
 	arg; \
 	emit_teq(g_out, reg_pos_ptr(16, R1, VALUE), rhs_reg); \
 	SET_NZC; \
@@ -1016,7 +1016,7 @@ static int OP_TEQ_IMM_VAL(const u32 i) { OP_TEQ_(S_IMM_VAL); }
 //-----------------------------------------------------------------------------
 //   CMP
 //-----------------------------------------------------------------------------
-#define OP_CMP(arg)  \
+#define OP_CMP(arg) \
 	arg; \
 	emit_cmp(g_out, reg_pos_ptr(16, R1, VALUE), rhs); \
 	SET_NZCV(1); \
@@ -1036,7 +1036,7 @@ static int OP_CMP_IMM_VAL(const u32 i) { OP_CMP(IMM_VAL); }
 //-----------------------------------------------------------------------------
 //   CMN
 //-----------------------------------------------------------------------------
-#define OP_CMN(arg)  \
+#define OP_CMN(arg) \
 	arg; \
 	u32 rhs_imm = *(u32*)&rhs_var; \
 	int sign = rhs_is_imm && (rhs_imm != -rhs_imm); \
@@ -1064,7 +1064,7 @@ static int OP_CMN_IMM_VAL(const u32 i) { OP_CMN(IMM_VAL); }
 //-----------------------------------------------------------------------------
 //   MOV
 //-----------------------------------------------------------------------------
-#define OP_MOV(arg)  \
+#define OP_MOV(arg) \
 	arg; \
 	emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_ptr(12, R1, ADDRESS), rhs);\
 	if(REG_POS(i,12)==15) \
@@ -1084,7 +1084,7 @@ static int OP_MOV_ROR_IMM(const u32 i) { OP_MOV(ROR_IMM); }
 static int OP_MOV_ROR_REG(const u32 i) { OP_MOV(ROR_REG); }
 static int OP_MOV_IMM_VAL(const u32 i) { OP_MOV(IMM_VAL); }
 
-#define OP_MOV_S(arg)  \
+#define OP_MOV_S(arg) \
 	arg; \
 	emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_ptr(12, R1, ADDRESS), rhs);\
 	if(REG_POS(i,12)==15) \
@@ -1146,7 +1146,7 @@ static int OP_QDSUB(const u32 i) { printf("JIT: unimplemented OP_QDSUB\n"); retu
 //   MUL
 //-----------------------------------------------------------------------------
 static void MUL_Mxx_END(int reg, bool sign, int cycles)
-{	
+{
 	if(sign)
 	{
 		emit_mov(g_out, reg, y);
@@ -1163,7 +1163,7 @@ static void MUL_Mxx_END(int reg, bool sign, int cycles)
 	emit_write_ptr32_reg(g_out, (uintptr_t)&bb_cycles, tmp);
 }
 
-#define OP_MUL_(op, width, sign, accum, flags)  \
+#define OP_MUL_(op, width, sign, accum, flags) \
 	reg_pos_ptr(0, lhs, VALUE); \
 	reg_pos_ptr(8, rhs, VALUE); \
 	op; \
@@ -1212,7 +1212,7 @@ static int OP_SMLAL_S(const u32 i) { OP_MUL_(emit_smlals(g_out, reg_pos_ptr(12, 
 
 #undef hi
 
-#define OP_MULxy_(op, x, y, width, accum, flags)  \
+#define OP_MULxy_(op, x, y, width, accum, flags) \
 	reg_pos_ptrS##x(0, lhs, VALUE); \
 	reg_pos_ptrS##y(8, rhs, VALUE); \
 	op; \
@@ -1277,7 +1277,7 @@ static int OP_SMLAL_T_T(const u32 i) { OP_MULxy_(emit_smlaltt(g_out, reg_pos_ptr
 //   SMULW / SMLAW
 //-----------------------------------------------------------------------------
 
-#define OP_SMxxW_(op, x, accum, flags)  \
+#define OP_SMxxW_(op, x, accum, flags) \
 	reg_pos_ptrS##x(8, lhs, VALUE);\
 	reg_pos_ptr(0, rhs, VALUE); \
 	op; \
@@ -1315,7 +1315,7 @@ static int OP_MRS_SPSR(const u32 i)
 	return 1;
 }
 
-#define OP_MSR_(reg, args, sw)  \
+#define OP_MSR_(reg, args, sw) \
 	args; \
 	emit_mov(g_out, rhs, operand); \
 	switch (((i>>16) & 0xF)) \
@@ -1514,7 +1514,7 @@ static const OpLDR LDRSB_tab[2][5]  = { T(OP_LDRSB) };
 static u32 add(u32 lhst, u32 rhst) { return lhst + rhst; }
 static u32 sub(u32 lhst, u32 rhst) { return lhst - rhst; }
 
-#define OP_LDR_(mem_op, arg, sign_op, writeback)  \
+#define OP_LDR_(mem_op, arg, sign_op, writeback) \
 	reg_pos_ptr(16, adr, VALUE); \
 	reg_pos_ptr(12, dst, ADDRESS); \
 	arg; \
@@ -1707,9 +1707,9 @@ static const OpSTR STRH_tab[2][3]  = { T(OP_STRH) };
 static const OpSTR STRB_tab[2][3]  = { T(OP_STRB) };
 #undef T
 
-#define OP_STR_(mem_op, arg, sign_op, writeback)  \
+#define OP_STR_(mem_op, arg, sign_op, writeback) \
 	reg_pos_ptr(12, data, VALUE); \
-	reg_pos_ptr(16, R8, VALUE);  \
+	reg_pos_ptr(16, R8, VALUE); \
 	arg; \
 	emit_mov(g_out, R8, adr); \
 	if(!rhs_is_imm || *(u32*)&rhs_var) \
@@ -1826,15 +1826,29 @@ template<int PROCNUM, u8 Rnum>
 static u32 FASTCALL OP_LDRD_REG(u32 adr)
 {
 	cpu->R[Rnum] = READ32(cpu->mem_if->data, adr);
-	cpu->R[Rnum+1] = READ32(cpu->mem_if->data, adr+4);
-	return (MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr) + MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr+4));
+	
+	// For even-numbered registers, we'll do a double-word load. Otherwise, we'll just do a single-word load.
+	if ((Rnum & 0x01) == 0)
+	{
+		cpu->R[(Rnum & 0xE) + 1] = READ32(cpu->mem_if->data, adr+4);
+		return (MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr) + MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr+4));
+	}
+	
+	return MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 }
 template<int PROCNUM, u8 Rnum>
 static u32 FASTCALL OP_STRD_REG(u32 adr)
 {
 	WRITE32(cpu->mem_if->data, adr, cpu->R[Rnum]);
-	WRITE32(cpu->mem_if->data, adr + 4, cpu->R[Rnum + 1]);
-	return (MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr) + MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr+4));
+	
+	// For even-numbered registers, we'll do a double-word store. Otherwise, we'll just do a single-word store.
+	if ((Rnum & 0x01) == 0)
+	{
+		WRITE32(cpu->mem_if->data, adr+4, cpu->R[(Rnum & 0xE) + 1]);
+		return (MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr) + MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr+4));
+	}
+	
+	return MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 }
 #define T(op, proc) op<proc,0>, op<proc,1>, op<proc,2>, op<proc,3>, op<proc,4>, op<proc,5>, op<proc,6>, op<proc,7>, op<proc,8>, op<proc,9>, op<proc,10>, op<proc,11>, op<proc,12>, op<proc,13>, op<proc,14>, op<proc,15>
 static const LDRD_STRD_REG op_ldrd_tab[2][16] = { {T(OP_LDRD_REG, 0)}, {T(OP_LDRD_REG, 1)} };
@@ -1842,7 +1856,7 @@ static const LDRD_STRD_REG op_strd_tab[2][16] = { {T(OP_STRD_REG, 0)}, {T(OP_STR
 #undef T
 
 static int OP_LDRD_STRD_POST_INDEX(const u32 i) 
-{	
+{
 	#define addr R2
 	#define Rd R4
 	#define Rs R5
@@ -1871,7 +1885,6 @@ static int OP_LDRD_STRD_POST_INDEX(const u32 i)
 	}
 	else
 	{
-
 		#define idx R3
 		reg_pos_ptr(0, idx, VALUE);
 		BIT23(i)?emit_add_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_ptr(16, R1, ADDRESS)), idx):emit_sub_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_ptr(16, R1, ADDRESS)), idx);
@@ -1896,7 +1909,7 @@ static int OP_LDRD_STRD_POST_INDEX(const u32 i)
 }
 
 static int OP_LDRD_STRD_OFFSET_PRE_INDEX(const u32 i)
-{	
+{
 	#define addr R2
 	#define Rd R4
 	#define Rs R5
@@ -1991,8 +2004,7 @@ typedef u32 FASTCALL (*OP_SWP_SWPB)(u32, u32*, u32);
 static const OP_SWP_SWPB op_swp_tab[2][2] = {{ op_swp<0>, op_swp<1> }, { op_swpb<0>, op_swpb<1> }};
 
 static int op_swp_(const u32 i, int b)
-{	
-	
+{
 	#define addr R2
 	#define Rd R4
 	#define Rs R5
@@ -2151,7 +2163,7 @@ static u32 FASTCALL OP_LDM_STM(u32 adr, u32 regslo, u32 regshi, int n)
 	u32 cycles;
 	u8 *ptr;
 	u64 regs = (u64)regslo | (u64)((u64)regshi << 32);
-		
+	
 	if((adr ^ (adr + (dir>0 ? (n-1)*4 : -15*4))) & ~0x3FFF) // a little conservative, but we don't want to run too many comparisons
 	{
 		// the memory region spans a page boundary, so we can't factor the address translation out of the loop
@@ -2197,7 +2209,7 @@ static const LDMOpFunc op_ldm_stm_tab[2][2][2] = {{
 }};
 
 static void call_ldm_stm(int reg, u32 bitmask, bool store, int dir)
-{	
+{
 	if(bitmask)
 	{
 		// Setup args
@@ -2223,7 +2235,7 @@ static int op_bx(/*Mem */int srcreg, bool blx, bool test_thumb);
 static int op_bx_thumb(/*Mem */ int srcreg, bool blx, bool test_thumb);
 
 static int op_ldm_stm(u32 i, bool store, int dir, bool before, bool writeback)
-{	
+{
 	#define adr R4
 	#define oldmode R5
 	
@@ -2290,7 +2302,7 @@ static int OP_STMDA_W(const u32 i) { return op_ldm_stm(i, 1, -1, 0, 1); }
 static int OP_STMDB_W(const u32 i) { return op_ldm_stm(i, 1, -1, 1, 1); }
 
 static int op_ldm_stm2(u32 i, bool store, int dir, bool before, bool writeback)
-{	
+{
 	u32 bitmask = i & 0xFFFF;
 	u32 pop = popregcount(bitmask);
 	bool bit15 = BIT15(i);
@@ -2377,10 +2389,8 @@ static int OP_STMDB2_W(const u32 i) { return op_ldm_stm2(i, 1, -1, 1, 1); }
 #define SIGNEXTEND_11(i) (((s32)i<<21)>>21)
 #define SIGNEXTEND_24(i) (((s32)i<<8)>>8)
 
-
-
 static int op_b(u32 i, bool bl)
-{	
+{
 	u32 dst = bb_r15 + (SIGNEXTEND_24(i) << 2);
 	if(CONDITION(i)==0xF)
 	{
@@ -2409,7 +2419,6 @@ static int op_bx(/*Mem */int srcreg, bool blx, bool test_thumb)
 
 	if(test_thumb)
 	{
-
 		emit_mov(g_out, dst, thumb);
 		
 		emit_andimm(g_out, thumb, 1, thumb);
@@ -2459,7 +2468,6 @@ static int OP_CLZ(const u32 i)
 // precalculate region masks/sets from cp15 register ----- JIT
 static void maskPrecalc(u32 _num)
 {
-	
 #define precalc(num) {  \
 	u32 mask = 0, set = 0xFFFFFFFF ; /* (x & 0) == 0xFF..FF is allways false (disabled) */  \
 	if (BIT_N(cp15.protectBaseSize[num],0)) /* if region is enabled */ \
@@ -2471,7 +2479,7 @@ static void maskPrecalc(u32 _num)
 			mask = 0 ; set = 0 ;   /* (x & 0) == 0  is allways true (enabled) */  \
 		} \
 	}  \
-	cp15.setSingleRegionAccess(num, mask, set) ;  \
+	armcp15_setSingleRegionAccess(&cp15, num, mask, set) ;  \
 }
 	switch(_num)
 	{
@@ -2540,7 +2548,6 @@ static int OP_MCR(const u32 i)
 		case 1:
 			if((opcode1==0) && (opcode2==0) && (CRm==0))
 			{
-				
 				static uintptr_t bb_mmu;
 				emit_write_ptr(g_out, (uintptr_t)&bb_mmu, (uintptr_t)&MMU);
 
@@ -2640,14 +2647,13 @@ static int OP_MCR(const u32 i)
 		case 7:
 			if((CRm==0)&&(opcode1==0)&&((opcode2==4)))
 			{
-				emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(waitIRQ, R1, ADDRESS), 1);
-				emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(halt_IE_and_IF, R1, ADDRESS), 1);
+				emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(freeze, R1, ADDRESS), CPU_FREEZE_IRQ_IE_IF);
 				break;
 			}
 			bUnknown = true;
 			break;
 		case 9:
-			if((opcode1==0))
+			if(opcode1==0)
 			{
 				switch(CRm)
 				{
@@ -2716,7 +2722,6 @@ static int OP_MCR(const u32 i)
 }
 static int OP_MRC(const u32 i)
 {
-	
 	if (PROCNUM == ARMCPU_ARM7) return 0;
 
 	u32 cpnum = REG_POS(i, 8);
@@ -2954,7 +2959,7 @@ static int OP_BKPT(const u32 i) { printf("JIT: unimplemented OP_BKPT\n"); return
 //-----------------------------------------------------------------------------
 //   THUMB
 //-----------------------------------------------------------------------------
-#define OP_SHIFTS_IMM(x86inst)  \
+#define OP_SHIFTS_IMM(x86inst) \
 	u8 cf_change = 1; \
 	const u32 rhs2 = ((i>>6) & 0x1F); \
 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3)) \
@@ -2972,7 +2977,7 @@ static int OP_BKPT(const u32 i) { printf("JIT: unimplemented OP_BKPT\n"); return
 	SET_NZC; \
 	return 1;
 
-#define OP_SHIFTS_REG(x86inst, bit)  \
+#define OP_SHIFTS_REG(x86inst, bit) \
 	u8 cf_change = 1; \
 	GET_CARRY(0); \
 	reg_pos_thumb(3, imm_reg, VALUE); \
@@ -2981,14 +2986,14 @@ static int OP_BKPT(const u32 i) { printf("JIT: unimplemented OP_BKPT\n"); return
 	SET_NZC; \
 	return 1;
 
-#define OP_LOGIC(x86inst, _conv)  \
+#define OP_LOGIC(x86inst, _conv) \
 	emit_mov(g_out, reg_pos_thumb(3, R1, VALUE), rhs); \
 	if (_conv==1) emit_not(g_out, rhs, rhs);\
 	reg_pos_thumb(0, R1, VALUE);\
 	x86inst(g_out, R1, rhs, R1);\
 	emit_write_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_thumb(0, R2, ADDRESS)), R1); \
 	SET_NZ(0);\
-	return 1;	
+	return 1;
 
 //-----------------------------------------------------------------------------
 //   LSL / LSR / ASR / ROR
@@ -3012,10 +3017,10 @@ static int OP_LSL_0(const u32 i)
 
 
 static int OP_LSL(const u32 i) { OP_SHIFTS_IMM(emit_lsls); }
-static int OP_LSL_REG(const u32 i) { OP_SHIFTS_REG(emit_lsls_reg, 0);  }
+static int OP_LSL_REG(const u32 i) { OP_SHIFTS_REG(emit_lsls_reg, 0); }
 
 static int OP_LSR_0(const u32 i) 
-{	
+{
 	emit_testimm(g_out, reg_pos_thumb(3, R1, VALUE), (1 << 31));
 	emit_setnz(g_out, rcf);
 	SET_NZC_SHIFTS_ZERO(1);
@@ -3028,7 +3033,7 @@ static int OP_LSR(const u32 i) { OP_SHIFTS_IMM(emit_lsrs); }
 static int OP_LSR_REG(const u32 i) { OP_SHIFTS_REG(emit_lsrs_reg, 31); }
 
 static int OP_ASR_0(const u32 i)
-{	
+{
 	u8 cf_change = 1;
 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3)) {
 		emit_asrs(g_out, reg_pos_thumb(0, R1, VALUE), 31);
@@ -3047,7 +3052,7 @@ static int OP_ASR_0(const u32 i)
 
 static int OP_ASR(const u32 i) { OP_SHIFTS_IMM(emit_asrs); }
 static int OP_ASR_REG(const u32 i) 
-{	
+{
 	u8 cf_change = 1;
 	GET_CARRY(0);
 	reg_pos_thumb(3, imm_reg, VALUE);
@@ -3084,7 +3089,7 @@ static int OP_BIC(const u32 i) { OP_LOGIC(emit_ands, 1); }
 //   NEG
 //-----------------------------------------------------------------------------
 static int OP_NEG(const u32 i)
-{	
+{
 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3))
 		emit_negs_ptr32_regptr(g_out, reg_pos_thumb(0, R1, ADDRESS));
 	else
@@ -3102,11 +3107,11 @@ static int OP_NEG(const u32 i)
 //   ADD
 //-----------------------------------------------------------------------------
 static int OP_ADD_IMM3(const u32 i) 
-{	
+{
 	u32 imm3 = (i >> 6) & 0x07;
 
 	if (imm3 == 0)	// mov 2
-	{		
+	{
 		reg_pos_thumb(3, tmp, VALUE);
 		emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), tmp);
 		emit_cmpimm(g_out, tmp,0);
@@ -3136,9 +3141,9 @@ static int OP_ADD_IMM8(const u32 i)
 	return 1; 
 }
 static int OP_ADD_REG(const u32 i) 
-{		
+{
 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3))
-	{	
+	{
 		reg_pos_thumb(6, tmp, VALUE);
 		emit_adds_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), tmp);
 	}
@@ -3161,7 +3166,7 @@ static int OP_ADD_REG(const u32 i)
 	return 1; 
 }
 static int OP_ADD_SPE(const u32 i)
-{		
+{
 	u32 Rd = _REG_NUM(i, 0) | ((i>>4)&8);
 	reg_ptr(Rd, tmp, VALUE);
 	reg_pos_ptr(3, tmp2, VALUE);
@@ -3175,7 +3180,7 @@ static int OP_ADD_SPE(const u32 i)
 }
 
 static int OP_ADD_2PC(const u32 i)
-{	
+{
 	u32 imm = ((i&0xFF)<<2);
 	emit_write_ptr32_regptrTO_immFROM(g_out, reg_pos_thumb(8, R1, ADDRESS), (bb_r15 & 0xFFFFFFFC) + imm);
 	
@@ -3188,7 +3193,7 @@ static int OP_ADD_2SP(const u32 i)
 	reg_ptr(13, tmp, VALUE);
 	if (imm) emit_addimm(g_out, tmp, imm, tmp);
 	emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(8, R1, ADDRESS), tmp);
-		
+	
 	return 1;
 }
 
@@ -3197,7 +3202,6 @@ static int OP_ADD_2SP(const u32 i)
 //-----------------------------------------------------------------------------
 static int OP_SUB_IMM3(const u32 i)
 {
-		
 	u32 imm3 = (i >> 6) & 0x07;
 
 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3))
@@ -3216,30 +3220,30 @@ static int OP_SUB_IMM3(const u32 i)
 	return 1;
 }
 static int OP_SUB_IMM8(const u32 i)
-{	
+{
 	emit_subs_ptr32_regptrTO_immFROM(g_out, reg_pos_thumb(8, R1, ADDRESS), (i & 0xFF));
 	SET_NZCV(1);
 	
 	return 1; 
 }
 static int OP_SUB_REG(const u32 i)
-{		
+{
 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3))
-	{	
+	{
 		reg_pos_thumb(6, tmp, VALUE);
 		reg_pos_thumb(0, tmp2, VALUE);
 		emit_subs(g_out, tmp2, tmp, tmp2);
 		emit_write_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_thumb(0, R1, ADDRESS)), tmp2);
 	}
 	else
-	{	
+	{
 		reg_pos_thumb(3, tmp, VALUE);
 		reg_pos_thumb(6, tmp2, VALUE);
 		emit_subs(g_out, tmp, tmp2, tmp);
 		emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), tmp);
 	}
 	
-	SET_NZCV(1);	
+	SET_NZCV(1);
 	
 	return 1; 
 }
@@ -3255,7 +3259,7 @@ static int OP_ADC_REG(const u32 i)
 	emit_adcs(g_out, tmp2, tmp, tmp2);
 	emit_write_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_thumb(0, R1, ADDRESS)), tmp2);
 	SET_NZCV(0);
-		
+	
 	return 1;
 }
 
@@ -3270,7 +3274,7 @@ static int OP_SBC_REG(const u32 i)
 	emit_sbcs(g_out, tmp2, tmp, tmp2);
 	emit_write_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_thumb(0, R1, ADDRESS)), tmp2);
 	SET_NZCV(1);
-		
+	
 	return 1;
 }
 
@@ -3282,12 +3286,12 @@ static int OP_MOV_IMM8(const u32 i)
 	emit_movimms(g_out, i & 0xFF, tmp);
 	emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(8, R1, ADDRESS), tmp);
 	SET_NZ(0);
-		
+	
 	return 1;
 }
 
 static int OP_MOV_SPE(const u32 i)
-{		
+{
 	u32 Rd = _REG_NUM(i, 0) | ((i>>4)&8);
 	reg_pos_ptr(3, tmp, VALUE);
 	emit_write_ptr32_regptrTO_regFROM(g_out, reg_ptr(Rd, R1, ADDRESS), tmp);
@@ -3295,7 +3299,7 @@ static int OP_MOV_SPE(const u32 i)
 	{
 		emit_write_ptr32_regptrTO_regFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), tmp);
 		bb_constant_cycles += 2;
-	}	
+	}
 	
 	return 1;
 }
@@ -3306,7 +3310,7 @@ static int OP_MVN(const u32 i)
 	emit_mvns(g_out, tmp, tmp2);
 	emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), tmp2);
 	SET_NZ(0);
-		
+	
 	return 1;
 }
 
@@ -3324,7 +3328,7 @@ static int OP_MUL_REG(const u32 i)
 	if (PROCNUM == ARMCPU_ARM7)
 		emit_write_ptr32(g_out, (uintptr_t)&bb_cycles, (uintptr_t)4);
 	else
-		MUL_Mxx_END(lhs, 0, 1);	
+		MUL_Mxx_END(lhs, 0, 1);
 	
 	return 1;
 }
@@ -3342,12 +3346,12 @@ static int OP_CMP_IMM8(const u32 i)
 }
 
 static int OP_CMP(const u32 i) 
-{	
+{
 	reg_pos_thumb(3, tmp2, VALUE);
 	reg_pos_thumb(0, tmp, VALUE);
 	emit_cmp(g_out, tmp, tmp2);
 	SET_NZCV(1);
-
+	
 	return 1; 
 }
 
@@ -3359,7 +3363,7 @@ static int OP_CMP_SPE(const u32 i)
 	emit_cmp(g_out, tmp, tmp2);
 	SET_NZCV(1);
 	
-	return 1; 
+	return 1;
 }
 
 static int OP_CMN(const u32 i) 
@@ -3367,7 +3371,7 @@ static int OP_CMN(const u32 i)
 	reg_pos_thumb(0, tmp, VALUE);
 	reg_pos_thumb(3, tmp2, VALUE);
 	emit_adds(g_out, tmp, tmp2, tmp); // MAY NEED TO SET FLAGS HERE
-	SET_NZCV(0);	
+	SET_NZCV(0);
 	
 	return 1; 
 }
@@ -3376,11 +3380,11 @@ static int OP_CMN(const u32 i)
 //   TST
 //-----------------------------------------------------------------------------
 static int OP_TST(const u32 i)
-{	
+{
 	reg_pos_thumb(3, tmp, VALUE);
 	reg_pos_thumb(0, tmp2, VALUE);
 	emit_test(g_out, tmp, tmp2);
-	SET_NZ(0);	
+	SET_NZ(0);
 	
 	return 1;
 }
@@ -3388,7 +3392,7 @@ static int OP_TST(const u32 i)
 //-----------------------------------------------------------------------------
 //   STR / LDR / STRB / LDRB
 //-----------------------------------------------------------------------------
-#define STR_THUMB(mem_op, offset)  \
+#define STR_THUMB(mem_op, offset) \
 	u32 adr_first = cpu->R[_REG_NUM(i, 3)];\
 	reg_pos_thumb(3, R0, VALUE);\
 	if ((offset) != -1) \
@@ -3436,7 +3440,7 @@ static int OP_TST(const u32 i)
 
 static int OP_STRB_IMM_OFF(const u32 i) { STR_THUMB(STRB, ((i>>6)&0x1F)); }
 static int OP_LDRB_IMM_OFF(const u32 i) { LDR_THUMB(LDRB, ((i>>6)&0x1F)); }
-static int OP_STRB_REG_OFF(const u32 i) { STR_THUMB(STRB, -1); } 
+static int OP_STRB_REG_OFF(const u32 i) { STR_THUMB(STRB, -1); }
 static int OP_LDRB_REG_OFF(const u32 i) { LDR_THUMB(LDRB, -1); }
 static int OP_LDRSB_REG_OFF(const u32 i) { LDR_THUMB(LDRSB, -1); }
 
@@ -3453,7 +3457,6 @@ static int OP_LDR_REG_OFF(const u32 i) { LDR_THUMB(LDR, -1); }
 
 static int OP_STR_SPREL(const u32 i)
 {
-	
 	#define addr R0
 	#define data R1
 	
@@ -3478,13 +3481,13 @@ static int OP_STR_SPREL(const u32 i)
 }
 
 static int OP_LDR_SPREL(const u32 i)
-{	
+{
 	#define addr R0
 	#define data R1
 	
 	u32 imm = ((i&0xFF)<<2);
 	u32 adr_first = cpu->R[13] + imm;
-		
+	
 	reg_ptr(13, addr, VALUE);
 	if (imm) emit_addimm(g_out, addr, imm, addr);
 	reg_pos_thumb(8, data, ADDRESS);
@@ -3504,7 +3507,7 @@ static int OP_LDR_SPREL(const u32 i)
 }
 
 static int OP_LDR_PCREL(const u32 i)
-{	
+{
 	#define addr R0
 	#define data R1
 	
@@ -3533,7 +3536,7 @@ static int OP_LDR_PCREL(const u32 i)
 //   STMIA / LDMIA
 //-----------------------------------------------------------------------------
 static int op_ldm_stm_thumb(u32 i, bool store)
-{		
+{
 	u32 bitmask = i & 0xFF;
 	u32 pop = popregcount(bitmask);
 
@@ -3574,7 +3577,7 @@ static int OP_ADJUST_M_SP(const u32 i) { emit_sub_ptr32_regptrTO_immFROM(g_out, 
 //   PUSH / POP
 //-----------------------------------------------------------------------------
 static int op_push_pop(u32 i, bool store, bool pc_lr)
-{	
+{
 	#define adr R4
 	
 	u32 bitmask = (i & 0xFF);
@@ -3608,7 +3611,7 @@ static int OP_POP_PC(const u32 i)  { return op_push_pop(i, 0, 1); }
 //   Branch
 //-----------------------------------------------------------------------------
 static int OP_B_COND(const u32 i)
-{	
+{
 	unsigned int skip=genlabel();
 	u32 dst = bb_r15 + ((u32)((s8)(i&0xFF))<<1);
 	
@@ -3633,7 +3636,7 @@ static int OP_B_UNCOND(const u32 i)
 }
 
 static int OP_BLX(const u32 i)
-{	
+{
 	#define dst R4
 	
 	reg_ptr(14, dst, VALUE);
@@ -3651,7 +3654,7 @@ static int OP_BLX(const u32 i)
 }
 
 static int OP_BL_10(const u32 i)
-{	
+{
 	u32 dst = bb_r15 + (SIGNEXTEND_11(i)<<12);
 	emit_write_ptr32_regptrTO_immFROM(g_out,reg_ptr(14, R1, ADDRESS), dst);
 	return 1;
@@ -3677,19 +3680,19 @@ static int op_bx_thumb(/*Mem*/int srcreg, bool blx, bool test_thumb)
 	#define dst tmp_reg
 	#define mask R8
 	
-	
 	emit_mov(g_out, srcreg, dst);
 	emit_mov(g_out, dst, thumb);
 	emit_andimm(g_out, thumb, 1, thumb);
 	
 	if (blx) emit_write_ptr32_regptrTO_immFROM(g_out, reg_ptr(14, R1, ADDRESS), bb_next_instruction | 1);
 	if(test_thumb)
-	{	
+	{
 		emit_mov(g_out, thumb, R9);
 		emit_lea_ptr_reg(g_out, 0xFFFFFFFC, R9, 2, mask);
-		emit_and(g_out, dst, mask, dst);		
+		emit_and(g_out, dst, mask, dst);
 	}
-	else {
+	else
+	{
 		emit_andimm(g_out, dst, 0xFFFFFFFE, dst);
 	}
 	
@@ -3709,7 +3712,7 @@ static int op_bx_thumb(/*Mem*/int srcreg, bool blx, bool test_thumb)
 }
 
 static int op_bx_thumbR15()
-{	
+{
 	const u32 r15 = (bb_r15 & 0xFFFFFFFC);
 	emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(instruct_adr, R1, ADDRESS), r15);
 	emit_write_ptr32_regptrTO_immFROM(g_out, reg_ptr(15, R1, ADDRESS), r15);
@@ -3852,7 +3855,7 @@ static bool instr_does_prefetch(u32 opcode)
 			   && ((xt & BRANCH_ALWAYS) || (xt & BRANCH_LDM));
 }
 
-static char *blah = "";
+static const char *blah = "";
 static const char *disassemble(u32 opcode)
 {
 	return blah;
@@ -3876,7 +3879,7 @@ static const char *disassemble(u32 opcode)
 }
 
 static void sync_r15(u32 opcode, bool is_last, bool force)
-{	
+{
 	if(instr_does_prefetch(opcode))
 	{
 		if(force)
@@ -3887,7 +3890,7 @@ static void sync_r15(u32 opcode, bool is_last, bool force)
 	else
 	{
 		if(force || (instr_attributes(opcode) & JIT_BYPASS) || (instr_attributes(opcode) & BRANCH_SWI) || (is_last && !instr_is_branch(opcode)))
-		{			
+		{
 			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), bb_next_instruction);	
 		}
 		if(instr_uses_r15(opcode))
@@ -3899,7 +3902,6 @@ static void sync_r15(u32 opcode, bool is_last, bool force)
 			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(instruct_adr, R1, ADDRESS), bb_adr);
 		}
 	}
-	
 }
 
 static void emit_branch(int cond, int /*Label*/ to)
@@ -3931,7 +3933,7 @@ static void emit_branch(int cond, int /*Label*/ to)
 }
 
 static void emit_armop_call(u32 opcode)
-{	
+{
 	ArmOpCompiler fc = bb_thumb?	thumb_instruction_compilers[opcode>>6]:
 									arm_instruction_compilers[INSTRUCTION_INDEX(opcode)];
 		
@@ -3983,7 +3985,7 @@ static u32 compile_basicblock()
 #if LOG_JIT
 	bool has_variable_cycles = FALSE;
 #endif
-
+	
 	u32 interpreted_cycles = 0;
 	u32 start_adr = cpu->instruct_adr;
 	u32 opcode = 0;
@@ -4021,7 +4023,7 @@ static u32 compile_basicblock()
 
 	bb_constant_cycles = 0;
 	for(u32 i=0, bEndBlock = 0; bEndBlock == 0; i++)
-	{		
+	{
 		bb_adr = start_adr + (i * bb_opcodesize);
 		if(bb_thumb)
 			opcode = _MMU_read16<PROCNUM, MMU_AT_CODE>(bb_adr);
@@ -4065,9 +4067,9 @@ static u32 compile_basicblock()
 			}
 			
 			emit_armop_call(opcode);
-						
+			
 			if(cycles == 0)
-			{				
+			{
 				JIT_COMMENT("variable cycles");
 				emit_inc_ptr(g_out, (uintptr_t)&bb_total_cycles, (uintptr_t)&bb_cycles);
 				emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, -1);
@@ -4078,7 +4080,7 @@ static u32 compile_basicblock()
 					JIT_COMMENT("cycles (%d)", cycles);
 					emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, -1);
 				}
-			emit_label(g_out, (int)skip);			
+			emit_label(g_out, (int)skip);
 		}
 		else
 		{
@@ -4114,10 +4116,7 @@ static u32 compile_basicblock()
 	emit_endfunc(g_out);
 	
 	ArmOpCompiled f;
-
-	
 	f = createFunc(g_out);
-	g_out = NULL;
 
 	jit_exec();
 		
@@ -4160,7 +4159,6 @@ template u32 arm_jit_compile<1>();
 
 void arm_jit_reset(bool enable, bool suppress_msg)
 {
-	
 #if LOG_JIT
 	freopen("desmume_jit.log", "w", stderr);
 #endif
@@ -4176,8 +4174,8 @@ void arm_jit_reset(bool enable, bool suppress_msg)
 #ifdef MAPPED_JIT_FUNCS
 
 		//these pointers are allocated by asmjit and need freeing
-		#define JITFREE(x)  for(int iii=0;iii<ARRAY_SIZE(x);iii++) if(x[iii]) AsmJit::MemoryManager::getGlobal()->free((void*)x[iii]);  memset(x,0,sizeof(x));
-/*			JITFREE(JIT.MAIN_MEM);
+#define JITFREE(x)  for(int iii=0;iii<ARRAY_SIZE(x);iii++) if(x[iii]) x[iii] = NULL;
+			JITFREE(JIT.MAIN_MEM);
 			JITFREE(JIT.SWIRAM);
 			JITFREE(JIT.ARM9_ITCM);
 			JITFREE(JIT.ARM9_LCDC);
@@ -4185,9 +4183,8 @@ void arm_jit_reset(bool enable, bool suppress_msg)
 			JITFREE(JIT.ARM7_BIOS);
 			JITFREE(JIT.ARM7_ERAM);
 			JITFREE(JIT.ARM7_WIRAM);
-			JITFREE(JIT.ARM7_WRAM);*/
+			JITFREE(JIT.ARM7_WRAM);
 		#undef JITFREE
-
 		memset(recompile_counts, 0, sizeof(recompile_counts));
 		init_jit_mem();
 #else
@@ -4367,4 +4364,3 @@ void arm_jit_close()
 #endif
 }
 #endif // HAVE_JIT
-
